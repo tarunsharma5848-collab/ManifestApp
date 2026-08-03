@@ -16,7 +16,13 @@ export function AuthProvider({ children }) {
     api
       .get('/auth/me')
       .then((res) => setUser(res.data.user))
-      .catch(() => localStorage.removeItem('token'))
+      .catch((err) => {
+        // Only clear the token if the server explicitly says it's invalid.
+        // A network error / cold-start timeout should NOT log the user out.
+        if (err.response?.status === 401) {
+          localStorage.removeItem('token');
+        }
+      })
       .finally(() => setLoading(false));
   }, []);
 
