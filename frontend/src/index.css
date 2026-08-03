@@ -1,0 +1,56 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  /* Cosmic / night-sky palette */
+  --color-cosmic-navy: #0b0f2b;
+  --color-cosmic-navy-light: #141a3d;
+  --color-cosmic-navy-deep: #060815;
+  --color-cosmic-gold: #d4af6a;
+  --color-cosmic-gold-light: #e8cf9c;
+  --color-cosmic-lavender: #b9a6dc;
+  --color-cosmic-lavender-light: #d6c9ee;
+  --color-cosmic-star: #f5f0e6;
+
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-body: 'Inter', sans-serif;
+}
+
+body {
+  background-color: var(--color-cosmic-navy);
+  color: var(--color-cosmic-star);
+  font-family: var(--font-body);
+  margin: 0;
+}
+
+h1, h2, h3, .font-display {
+  font-family: var(--font-display);
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* Theme presets — swap by setting data-theme on <html> */
+[data-theme='pastel'] {
+  --color-cosmic-navy: #fdf2f8;
+  --color-cosmic-navy-light: #fce7f3;
+  --color-cosmic-navy-deep: #f5d0e8;
+  --color-cosmic-gold: #f472b6;
+  --color-cosmic-gold-light: #f9a8d4;
+  --color-cosmic-lavender: #a78bfa;
+  --color-cosmic-lavender-light: #c4b5fd;
+  --color-cosmic-star: #4c1d5b;
+}
+
+[data-theme='dark-academia'] {
+  --color-cosmic-navy: #1c1410;
+  --color-cosmic-navy-light: #2b2018;
+  --color-cosmic-navy-deep: #120d0a;
+  --color-cosmic-gold: #c9a15a;
+  --color-cosmic-gold-light: #dbb877;
+  --color-cosmic-lavender: #8a7361;
+  --color-cosmic-lavender-light: #a8927e;
+  --color-cosmic-star: #e8dcc8;
+}
