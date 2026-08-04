@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import api from '../api/client';
 import VoiceRecorder from '../components/VoiceRecorder';
+import ConfirmDialog from '../components/ConfirmDialog';
+
+const MAX_LENGTH = 200;
 
 export default function Affirmations() {
   const [affirmations, setAffirmations] = useState([]);
@@ -8,6 +11,8 @@ export default function Affirmations() {
   const [newText, setNewText] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [fieldError, setFieldError] = useState('');
+  const [confirmId, setConfirmId] = useState(null);
 
   const load = async () => {
     try {
@@ -28,11 +33,30 @@ export default function Affirmations() {
     load();
   }, []);
 
+  const isDuplicate = (text) =>
+    affirmations.some((a) => a.text.trim().toLowerCase() === text.trim().toLowerCase());
+
   const handleAdd = async (e) => {
     e.preventDefault();
-    if (!newText.trim()) return;
+    const text = newText.trim();
+
+    // Fix: was failing silently on empty submit with no feedback at all.
+    if (!text) {
+      setFieldError('Write something before adding it.');
+      return;
+    }
+    if (text.length > MAX_LENGTH) {
+      setFieldError(`Keep it under ${MAX_LENGTH} characters.`);
+      return;
+    }
+    if (isDuplicate(text)) {
+      setFieldError("You've already added this exact affirmation.");
+      return;
+    }
+
+    setFieldError('');
     try {
-      const res = await api.post('/affirmations', { text: newText.trim() });
+      const res = await api.post('/affirmations', { text });
       setAffirmations((prev) => [res.data.affirmation, ...prev]);
       window.dispatchEvent(new Event('manifest:xp-changed'));
       setNewText('');
@@ -51,11 +75,15 @@ export default function Affirmations() {
     }
   };
 
-  const handleDelete = async (id) => {
+  const confirmDelete = async () => {
+    const id = confirmId;
+    setConfirmId(null);
     const prev = affirmations;
     setAffirmations((cur) => cur.filter((a) => a.id !== id));
     try {
       await api.delete(`/affirmations/${id}`);
+      // Reverses the XP earned on add — keeps the dashboard/sidebar in sync.
+      window.dispatchEvent(new Event('manifest:xp-changed'));
     } catch (err) {
       setAffirmations(prev);
       setError('Could not delete affirmation');
@@ -93,23 +121,39 @@ export default function Affirmations() {
         )}
       </div>
 
-      <form onSubmit={handleAdd} className="flex gap-2 mb-6">
-        <input
-          type="text"
-          value={newText}
-          onChange={(e) => setNewText(e.target.value)}
-          placeholder="I am aligned with everything I desire..."
-          className="flex-1 rounded-lg bg-cosmic-navy-light border border-cosmic-lavender/30 px-4 py-2 text-cosmic-star placeholder:text-cosmic-star/40 focus:outline-none focus:border-cosmic-gold"
-        />
-        <button
-          type="submit"
-          className="rounded-lg bg-cosmic-gold text-cosmic-navy-deep text-sm font-medium px-4 py-2 hover:bg-cosmic-gold-light transition"
-        >
-          Add
-        </button>
+      <form onSubmit={handleAdd} className="mb-2">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={newText}
+            onChange={(e) => {
+              setNewText(e.target.value);
+              if (fieldError) setFieldError('');
+            }}
+            maxLength={MAX_LENGTH}
+            placeholder="I am aligned with everything I desire..."
+            className={`flex-1 rounded-lg bg-cosmic-navy-light border px-4 py-2 text-cosmic-star placeholder:text-cosmic-star/40 focus:outline-none ${
+              fieldError ? 'border-red-400/60' : 'border-cosmic-lavender/30 focus:border-cosmic-gold'
+            }`}
+          />
+          <button
+            type="submit"
+            className="rounded-lg bg-cosmic-gold text-cosmic-navy-deep text-sm font-medium px-4 py-2 hover:bg-cosmic-gold-light transition"
+          >
+            Add
+          </button>
+        </div>
+        <div className="flex items-center justify-between mt-1">
+          {fieldError ? (
+            <p className="text-xs text-red-400">{fieldError}</p>
+          ) : (
+            <span />
+          )}
+          <p className="text-xs text-cosmic-star/30">{newText.length}/{MAX_LENGTH}</p>
+        </div>
       </form>
 
-      <div className="space-y-2">
+      <div className="space-y-2 mt-4">
         {affirmations.map((a) => (
           <div
             key={a.id}
@@ -123,16 +167,18 @@ export default function Affirmations() {
               existingAudioUrl={a.audio_url}
               onSaved={handleVoiceSaved}
             />
-            <div className="flex items-center gap-3 shrink-0">
+            <div className="flex items-center gap-4 shrink-0">
               <button
                 onClick={() => handleToggle(a.id)}
                 className="text-xs text-cosmic-lavender-light underline"
               >
                 {a.is_active ? 'Deactivate' : 'Activate'}
               </button>
+              {/* Moved further from Deactivate + confirm added, so a misclick can't
+                  permanently delete data (was ~20px away with no confirmation). */}
               <button
-                onClick={() => handleDelete(a.id)}
-                className="text-xs text-red-400/70 hover:text-red-400"
+                onClick={() => setConfirmId(a.id)}
+                className="text-xs text-red-400/70 hover:text-red-400 ml-2 pl-2 border-l border-cosmic-lavender/10"
               >
                 Delete
               </button>
@@ -140,6 +186,14 @@ export default function Affirmations() {
           </div>
         ))}
       </div>
+
+      <ConfirmDialog
+        open={confirmId !== null}
+        title="Delete this affirmation?"
+        message="This can't be undone."
+        onConfirm={confirmDelete}
+        onCancel={() => setConfirmId(null)}
+      />
     </div>
   );
 }

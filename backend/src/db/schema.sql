@@ -48,10 +48,19 @@ CREATE TABLE IF NOT EXISTS vision_board_items (
   user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
   dream_id INTEGER REFERENCES dreams(id) ON DELETE CASCADE,
   image_url TEXT NOT NULL,
+  public_id TEXT, -- Cloudinary public_id, used to generate short-lived signed URLs (auth fix)
   caption VARCHAR(255),
   position INTEGER DEFAULT 0,
   created_at TIMESTAMP DEFAULT NOW()
 );
+
+-- Migration for existing DBs: add public_id if the table already existed
+ALTER TABLE vision_board_items ADD COLUMN IF NOT EXISTS public_id TEXT;
+
+-- Migration for existing DBs: tracks whether a goal has EVER paid out its
+-- achieved-XP, so toggling achieved -> in_progress -> achieved repeatedly
+-- can't re-farm XP. Fixed value once true; never reset.
+ALTER TABLE goals ADD COLUMN IF NOT EXISTS xp_awarded BOOLEAN DEFAULT FALSE;
 
 CREATE TABLE IF NOT EXISTS affirmations (
   id SERIAL PRIMARY KEY,

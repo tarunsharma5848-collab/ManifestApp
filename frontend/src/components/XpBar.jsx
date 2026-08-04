@@ -1,25 +1,10 @@
-import { useEffect, useState } from 'react';
-import api from '../api/client';
+import { useXp } from '../context/XpContext';
 
+// Now reads from the shared XpContext (single source of truth) instead of
+// doing its own independent fetch. Fixes bug: dashboard and sidebar XP
+// disagreeing after an action like the reward wheel spin.
 export default function XpBar() {
-  const [status, setStatus] = useState(null);
-
-  const load = async () => {
-    try {
-      const res = await api.get('/gamification/me');
-      setStatus(res.data);
-    } catch (err) {
-      // XP bar is decorative — fail silently, don't block the sidebar
-    }
-  };
-
-  useEffect(() => {
-    load();
-    // Refresh when any XP-earning action fires elsewhere in the app.
-    const handler = () => load();
-    window.addEventListener('manifest:xp-changed', handler);
-    return () => window.removeEventListener('manifest:xp-changed', handler);
-  }, []);
+  const { status } = useXp();
 
   if (!status) return null;
 

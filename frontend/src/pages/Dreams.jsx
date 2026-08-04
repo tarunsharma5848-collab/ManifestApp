@@ -29,6 +29,10 @@ export default function Dreams() {
   const [lifeChange, setLifeChange] = useState('');
   const [duplicateWarning, setDuplicateWarning] = useState(null);
   const [creating, setCreating] = useState(false);
+  const [fieldError, setFieldError] = useState('');
+
+  const TITLE_MAX = 100;
+  const today = new Date().toISOString().slice(0, 10);
 
   const navigate = useNavigate();
 
@@ -78,7 +82,15 @@ export default function Dreams() {
 
   const handleCreate = async (e) => {
     e.preventDefault();
-    if (!title.trim() || !category) return;
+    if (!title.trim()) {
+      setFieldError('Give your dream a title.');
+      return;
+    }
+    if (!category) {
+      setFieldError('Pick a category above.');
+      return;
+    }
+    setFieldError('');
     setCreating(true);
     setError('');
     try {
@@ -95,7 +107,7 @@ export default function Dreams() {
       // picks up the new active dream's (empty) data.
       window.location.href = '/';
     } catch (err) {
-      setError('Could not create dream');
+      setError(err.response?.data?.message || 'Could not create dream');
     } finally {
       setCreating(false);
     }
@@ -173,9 +185,13 @@ export default function Dreams() {
               required
               value={title}
               onChange={(e) => handleTitleChange(e.target.value)}
+              maxLength={TITLE_MAX}
               placeholder="e.g. Become a Frontend Developer at a top product company"
               className="w-full rounded-lg bg-cosmic-navy border border-cosmic-lavender/30 px-4 py-2 text-cosmic-star placeholder:text-cosmic-star/40 focus:outline-none focus:border-cosmic-gold"
             />
+            <div className="flex items-center justify-end mt-1">
+              <p className="text-xs text-cosmic-star/30">{title.length}/{TITLE_MAX}</p>
+            </div>
             {duplicateWarning && (
               <p className="text-xs text-cosmic-gold mt-1">
                 You already have a dream called "{duplicateWarning.title}" — this looks similar. You can
@@ -200,6 +216,7 @@ export default function Dreams() {
             <input
               type="date"
               value={targetDate}
+              min={today}
               onChange={(e) => setTargetDate(e.target.value)}
               className="w-full rounded-lg bg-cosmic-navy border border-cosmic-lavender/30 px-4 py-2 text-cosmic-star focus:outline-none focus:border-cosmic-gold"
             />
@@ -220,11 +237,12 @@ export default function Dreams() {
 
           <button
             type="submit"
-            disabled={creating || !title.trim() || !category}
+            disabled={creating}
             className="w-full rounded-lg bg-cosmic-gold text-cosmic-navy-deep font-medium py-3 hover:bg-cosmic-gold-light transition disabled:opacity-50"
           >
             {creating ? 'Creating...' : 'Start This Journey'}
           </button>
+          {fieldError && <p className="text-xs text-red-400 text-center">{fieldError}</p>}
         </form>
       )}
 
@@ -243,7 +261,7 @@ export default function Dreams() {
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h3 className="font-display text-xl text-cosmic-lavender-light">{d.title}</h3>
+                  <h3 className="font-display text-xl text-cosmic-lavender-light line-clamp-2 break-words">{d.title}</h3>
                   <p className="text-xs text-cosmic-star/50 mt-0.5 capitalize">
                     {d.category?.replace('_', ' ')}
                   </p>

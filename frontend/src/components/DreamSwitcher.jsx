@@ -75,7 +75,7 @@ export default function DreamSwitcher() {
             <button
               key={d.id}
               onClick={() => handleSwitch(d.id)}
-              className={`w-full text-left px-3 py-2 text-xs hover:bg-cosmic-navy transition ${
+              className={`w-full text-left px-3 py-2 text-xs hover:bg-cosmic-navy transition truncate ${
                 d.id === activeDreamId ? 'text-cosmic-gold' : 'text-cosmic-star/80'
               }`}
             >

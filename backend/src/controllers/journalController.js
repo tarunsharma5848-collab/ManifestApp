@@ -46,6 +46,9 @@ export async function addEntry(req, res) {
   try {
     const { content, method = '369' } = req.body;
     if (!content || !content.trim()) return res.status(400).json({ message: 'Entry content is required' });
+    if (content.trim().length > 3000) {
+      return res.status(400).json({ message: 'Entry must be under 3000 characters' });
+    }
 
     const { rows } = await pool.query(
       `INSERT INTO journal_entries (user_id, dream_id, method, content) VALUES ($1, $2, $3, $4) RETURNING *`,
@@ -72,6 +75,24 @@ export async function addEntry(req, res) {
   } catch (err) {
     console.error('addEntry error', err);
     res.status(500).json({ message: 'Could not save entry' });
+  }
+}
+
+export async function updateEntry(req, res) {
+  try {
+    const { id } = req.params;
+    const { content } = req.body;
+    if (!content || !content.trim()) return res.status(400).json({ message: 'Entry content is required' });
+
+    const { rows } = await pool.query(
+      'UPDATE journal_entries SET content = $1 WHERE id = $2 AND user_id = $3 RETURNING *',
+      [content.trim(), id, req.userId]
+    );
+    if (rows.length === 0) return res.status(404).json({ message: 'Entry not found' });
+    res.json({ entry: rows[0] });
+  } catch (err) {
+    console.error('updateEntry error', err);
+    res.status(500).json({ message: 'Could not update entry' });
   }
 }
 

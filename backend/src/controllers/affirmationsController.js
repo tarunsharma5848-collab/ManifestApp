@@ -1,7 +1,7 @@
 import streamifier from 'streamifier';
 import { pool } from '../config/db.js';
 import cloudinary from '../config/cloudinary.js';
-import { awardXp, awardBadge, logStar, XP_REWARDS } from '../config/gamification.js';
+import { awardXp, deductXp, awardBadge, logStar, XP_REWARDS } from '../config/gamification.js';
 
 function uploadBufferToCloudinary(buffer, folder) {
   return new Promise((resolve, reject) => {
@@ -35,6 +35,9 @@ export async function addAffirmation(req, res) {
   try {
     const { text } = req.body;
     if (!text || !text.trim()) return res.status(400).json({ message: 'Affirmation text is required' });
+    if (text.trim().length > 200) {
+      return res.status(400).json({ message: 'Affirmation must be under 200 characters' });
+    }
 
     const { rows } = await pool.query(
       'INSERT INTO affirmations (user_id, dream_id, text) VALUES ($1, $2, $3) RETURNING *',
@@ -111,7 +114,12 @@ export async function deleteAffirmation(req, res) {
       [id, req.userId]
     );
     if (rows.length === 0) return res.status(404).json({ message: 'Affirmation not found' });
-    res.json({ message: 'Deleted' });
+
+    // Reverse the XP that was granted on add, otherwise add/delete/repeat
+    // is infinite free XP.
+    const xp = await deductXp(req.userId, XP_REWARDS.affirmation_added);
+
+    res.json({ message: 'Deleted', xp });
   } catch (err) {
     console.error('deleteAffirmation error', err);
     res.status(500).json({ message: 'Could not delete affirmation' });

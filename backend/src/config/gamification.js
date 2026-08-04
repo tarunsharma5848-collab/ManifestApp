@@ -56,6 +56,17 @@ export async function awardXp(userId, amount) {
   return rows[0]?.xp ?? 0;
 }
 
+// Reverses XP when a user deletes something they were credited for (e.g. an
+// affirmation). Clamped at 0 so it can never push a user negative. Without
+// this, add -> delete -> add -> delete is infinite free XP.
+export async function deductXp(userId, amount) {
+  const { rows } = await pool.query(
+    'UPDATE users SET xp = GREATEST(xp - $1, 0) WHERE id = $2 RETURNING xp',
+    [amount, userId]
+  );
+  return rows[0]?.xp ?? 0;
+}
+
 // Awards a badge if not already earned. Silently no-ops on duplicate
 // thanks to the UNIQUE(user_id, badge_key) constraint.
 export async function awardBadge(userId, badgeKey) {

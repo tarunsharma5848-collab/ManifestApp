@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import api from '../api/client';
+import { useXp } from '../context/XpContext';
 import GrowthTree from '../components/GrowthTree';
 import RewardWheel from '../components/RewardWheel';
 
@@ -24,30 +25,41 @@ function StatCard({ label, value, sub, icon }) {
 
 export default function Dashboard() {
   const [stats, setStats] = useState(null);
-  const [badges, setBadges] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  // Level/XP now comes from the shared context (single source of truth) so
+  // this card can never disagree with the sidebar — same fix as bug #10.
+  const { status } = useXp();
 
-  useEffect(() => {
-    Promise.all([api.get('/dashboard/stats'), api.get('/gamification/me')])
-      .then(([statsRes, gamificationRes]) => {
-        setStats(statsRes.data);
-        setBadges(gamificationRes.data.badges);
-      })
+  const loadStats = () => {
+    api
+      .get('/dashboard/stats')
+      .then((res) => setStats(res.data))
       .catch((err) => {
         if (err.response?.status === 400) {
           navigate('/dreams');
         }
       })
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadStats();
+    // Refetch the counts (goals, vision board, affirmations) whenever any
+    // XP-earning action happens anywhere in the app, not just on mount.
+    const handler = () => loadStats();
+    window.addEventListener('manifest:xp-changed', handler);
+    return () => window.removeEventListener('manifest:xp-changed', handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
 
+  const badges = status?.badges || [];
   const earnedBadges = badges.filter((b) => b.earned);
   const lockedBadges = badges.filter((b) => !b.earned);
 
   return (
     <div>
-      <h2 className="font-extrabold text-3xl sm:text-4xl tracking-tight bg-gradient-to-r from-cosmic-gold via-cosmic-lavender-light to-cosmic-gold bg-clip-text text-transparent mb-1">
+      <h2 className="font-extrabold text-3xl sm:text-4xl tracking-tight bg-gradient-to-r from-cosmic-gold via-cosmic-lavender-light to-cosmic-gold bg-clip-text text-transparent mb-1 line-clamp-2 break-words">
         {stats?.dreamTitle ? `Continue your "${stats.dreamTitle}" journey` : 'Welcome back'}
       </h2>
       <p className="text-cosmic-star/60 mb-8">Here's your manifestation snapshot.</p>
@@ -57,14 +69,24 @@ export default function Dashboard() {
       ) : (
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <StatCard icon="⚡" label="Level" value={stats.level} sub={`${stats.xpIntoLevel}/${stats.xpPerLevel} XP`} />
+            <StatCard
+              icon="⚡"
+              label="Level"
+              value={status?.level ?? '-'}
+              sub={status ? `${status.xpIntoLevel}/${status.xpPerLevel} XP` : ''}
+            />
             <StatCard
               icon="🎯"
               label="Goals Achieved"
               value={stats.goalsAchieved}
               sub={`${stats.goalsInProgress} in progress`}
             />
-            <StatCard icon="🖼️" label="Vision Board" value={stats.visionBoardCount} sub="images pinned" />
+            <StatCard
+              icon="🖼️"
+              label="Vision Board"
+              value={stats.visionBoardCount}
+              sub={`${stats.visionBoardCount === 1 ? 'image' : 'images'} pinned`}
+            />
             <StatCard
               icon="✨"
               label="Affirmations"

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import api from '../api/client';
 import ShareCardModal from '../components/ShareCardModal';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 export default function VisionBoard() {
   const [items, setItems] = useState([]);
@@ -9,6 +10,7 @@ export default function VisionBoard() {
   const [error, setError] = useState('');
   const [shareItem, setShareItem] = useState(null);
   const [todayAffirmation, setTodayAffirmation] = useState('');
+  const [confirmId, setConfirmId] = useState(null);
   const fileInputRef = useRef(null);
 
   const loadItems = async () => {
@@ -53,11 +55,14 @@ export default function VisionBoard() {
     }
   };
 
-  const handleDelete = async (id) => {
+  const confirmDelete = async () => {
+    const id = confirmId;
+    setConfirmId(null);
     const prev = items;
     setItems((cur) => cur.filter((it) => it.id !== id));
     try {
       await api.delete(`/vision-board/${id}`);
+      window.dispatchEvent(new Event('manifest:xp-changed'));
     } catch (err) {
       setItems(prev); // revert on failure
       setError('Could not delete image');
@@ -115,7 +120,7 @@ export default function VisionBoard() {
                   ↗
                 </button>
                 <button
-                  onClick={() => handleDelete(item.id)}
+                  onClick={() => setConfirmId(item.id)}
                   className="rounded-full bg-cosmic-navy-deep/80 text-cosmic-star text-xs w-7 h-7 flex items-center justify-center"
                   aria-label="Remove image"
                 >
@@ -134,6 +139,14 @@ export default function VisionBoard() {
           onClose={() => setShareItem(null)}
         />
       )}
+
+      <ConfirmDialog
+        open={confirmId !== null}
+        title="Remove this image?"
+        message="This can't be undone."
+        onConfirm={confirmDelete}
+        onCancel={() => setConfirmId(null)}
+      />
     </div>
   );
 }

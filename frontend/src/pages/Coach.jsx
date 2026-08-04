@@ -6,6 +6,7 @@ export default function Coach() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [waking, setWaking] = useState(false);
   const [error, setError] = useState('');
   const bottomRef = useRef(null);
 
@@ -28,6 +29,27 @@ export default function Coach() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, sending]);
 
+  const isColdStartError = (err) => {
+    // No response at all (timeout / network drop) is the signature of a
+    // Render instance that was asleep and didn't wake up in time.
+    return !err.response;
+  };
+
+  const sendWithRetry = async (text, attempt = 1) => {
+    try {
+      const res = await api.post('/ai-coach', { message: text });
+      return res.data.reply;
+    } catch (err) {
+      if (isColdStartError(err) && attempt === 1) {
+        setWaking(true);
+        // Give the instance a moment to finish waking, then retry once.
+        await new Promise((r) => setTimeout(r, 3000));
+        return sendWithRetry(text, 2);
+      }
+      throw err;
+    }
+  };
+
   const handleSend = async (e) => {
     e.preventDefault();
     const text = input.trim();
@@ -35,6 +57,7 @@ export default function Coach() {
 
     setInput('');
     setError('');
+    setWaking(false);
     setMessages((prev) => [
       ...prev,
       { id: `temp-${Date.now()}`, role: 'user', content: text },
@@ -42,12 +65,16 @@ export default function Coach() {
     setSending(true);
 
     try {
-      const res = await api.post('/ai-coach', { message: text });
-      setMessages((prev) => [...prev, res.data.reply]);
+      const reply = await sendWithRetry(text);
+      setMessages((prev) => [...prev, reply]);
     } catch (err) {
-      setError(err.response?.data?.message || 'Manifest Bro is unavailable right now.');
+      const msg = isColdStartError(err)
+        ? "Manifest Bro is still waking up — give it another few seconds and hit send again 🌙"
+        : err.response?.data?.message || 'Manifest Bro is unavailable right now.';
+      setError(msg);
     } finally {
       setSending(false);
+      setWaking(false);
     }
   };
 
@@ -97,7 +124,7 @@ export default function Coach() {
         {sending && (
           <div className="flex justify-start">
             <div className="max-w-[80%] rounded-2xl px-4 py-2 text-sm bg-cosmic-navy text-cosmic-star/50 border border-cosmic-lavender/20">
-              Manifest Bro is typing...
+              {waking ? 'Waking up Manifest Bro, ~30s (free hosting cold start)...' : 'Manifest Bro is typing...'}
             </div>
           </div>
         )}

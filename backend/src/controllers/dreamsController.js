@@ -40,6 +40,15 @@ export async function createDream(req, res) {
   try {
     const { title, category = 'custom', why_reason = '', target_date = null, life_change = '' } = req.body;
     if (!title || !title.trim()) return res.status(400).json({ message: 'Dream title is required' });
+    if (title.trim().length > 100) {
+      return res.status(400).json({ message: 'Dream title must be under 100 characters' });
+    }
+    if (target_date) {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      if (target_date < todayStr) {
+        return res.status(400).json({ message: 'Target date cannot be in the past' });
+      }
+    }
 
     const { rows } = await pool.query(
       `INSERT INTO dreams (user_id, title, category, why_reason, target_date, life_change)

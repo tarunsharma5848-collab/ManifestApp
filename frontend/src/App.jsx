@@ -1,7 +1,11 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { XpProvider } from './context/XpContext';
+import { wakeBackend } from './api/client';
 import Layout from './components/Layout';
+import LevelUpToast from './components/LevelUpToast';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Dreams from './pages/Dreams';
@@ -16,7 +20,13 @@ import Settings from './pages/Settings';
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
   if (loading) return <div className="min-h-screen bg-cosmic-navy" />;
-  return user ? children : <Navigate to="/login" replace />;
+  if (!user) return <Navigate to="/login" replace />;
+  return (
+    <XpProvider>
+      <LevelUpToast />
+      {children}
+    </XpProvider>
+  );
 }
 
 function AppRoutes() {
@@ -46,6 +56,10 @@ function AppRoutes() {
 }
 
 export default function App() {
+  useEffect(() => {
+    wakeBackend();
+  }, []);
+
   return (
     <BrowserRouter>
       <ThemeProvider>
